@@ -6,3 +6,10 @@ backend/uploads/
 frontend/build/
 deploy-zips/
 .env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+crash.log
