@@ -51,11 +51,11 @@ module "backend" {
     DB_PORT                  = "5432"
     DB_NAME                  = azurerm_postgresql_flexible_server_database.app.name
     DB_USER                  = azurerm_postgresql_flexible_server.main.administrator_login
-    DB_PASSWORD              = random_password.db.result
-    JWT_SECRET               = random_password.jwt.result
+    DB_PASSWORD              = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.db_password.versionless_id})"
+    JWT_SECRET               = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_secret.versionless_id})"
     CORS_ORIGIN              = "https://${module.frontend.default_hostname}"
     AZURE_STORAGE_ACCOUNT    = azurerm_storage_account.main.name
-    AZURE_STORAGE_ACCESS_KEY = azurerm_storage_account.main.primary_access_key
+    AZURE_STORAGE_ACCESS_KEY = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.storage_key.versionless_id})"
     AZURE_CONTAINER_NAME     = azurerm_storage_container.assets.name
   }
 }
@@ -133,4 +133,52 @@ resource "azurerm_storage_container" "assets" {
 resource "random_password" "jwt" {
   length  = 48
   special = false
+}
+
+# ---------- Step 9: Key Vault ----------
+
+data "azurerm_client_config" "current" {}
+
+resource "azurerm_key_vault" "main" {
+  name                       = "kv-${local.name}-${random_string.suffix.result}"
+  location                   = azurerm_resource_group.main.location
+  resource_group_name        = azurerm_resource_group.main.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  sku_name                   = "standard"
+  rbac_authorization_enabled = true
+  soft_delete_retention_days = 7
+  tags                       = local.tags
+}
+
+resource "azurerm_role_assignment" "me_secrets_officer" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+resource "azurerm_role_assignment" "backend_secrets_user" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = module.backend.principal_id
+}
+
+resource "azurerm_key_vault_secret" "db_password" {
+  name         = "db-password"
+  value        = random_password.db.result
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.me_secrets_officer]
+}
+
+resource "azurerm_key_vault_secret" "jwt_secret" {
+  name         = "jwt-secret"
+  value        = random_password.jwt.result
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.me_secrets_officer]
+}
+
+resource "azurerm_key_vault_secret" "storage_key" {
+  name         = "storage-key"
+  value        = azurerm_storage_account.main.primary_access_key
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.me_secrets_officer]
 }

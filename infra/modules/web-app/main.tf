@@ -7,6 +7,10 @@ resource "azurerm_linux_web_app" "this" {
   app_settings        = var.app_settings
   tags                = var.tags
 
+  identity {
+    type = "SystemAssigned"
+  }
+
   site_config {
     always_on = true
     application_stack {
