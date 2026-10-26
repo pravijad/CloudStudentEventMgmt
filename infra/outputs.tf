@@ -3,19 +3,19 @@ output "resource_group_name" {
 }
 
 output "backend_app_name" {
-  value = azurerm_linux_web_app.backend.name
+  value = module.backend.name
 }
 
 output "frontend_app_name" {
-  value = azurerm_linux_web_app.frontend.name
+  value = module.frontend.name
 }
 
 output "backend_url" {
-  value = "https://${azurerm_linux_web_app.backend.default_hostname}"
+  value = "https://${module.backend.default_hostname}"
 }
 
 output "frontend_url" {
-  value = "https://${azurerm_linux_web_app.frontend.default_hostname}"
+  value = "https://${module.frontend.default_hostname}"
 }
 
 output "db_host" {

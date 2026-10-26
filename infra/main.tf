@@ -28,20 +28,22 @@ resource "azurerm_service_plan" "main" {
   tags                = local.tags
 }
 
-resource "azurerm_linux_web_app" "backend" {
+module "frontend" {
+  source              = "./modules/web-app"
+  name                = "app-${local.name}-web-${random_string.suffix.result}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  service_plan_id     = azurerm_service_plan.main.id
+  tags                = local.tags
+}
+
+module "backend" {
+  source              = "./modules/web-app"
   name                = "app-${local.name}-api-${random_string.suffix.result}"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   service_plan_id     = azurerm_service_plan.main.id
-  https_only          = true
   tags                = local.tags
-
-  site_config {
-    always_on = true
-    application_stack {
-      node_version = "20-lts"
-    }
-  }
 
   app_settings = {
     NODE_ENV                 = "production"
@@ -51,27 +53,21 @@ resource "azurerm_linux_web_app" "backend" {
     DB_USER                  = azurerm_postgresql_flexible_server.main.administrator_login
     DB_PASSWORD              = random_password.db.result
     JWT_SECRET               = random_password.jwt.result
-    CORS_ORIGIN              = "https://${azurerm_linux_web_app.frontend.default_hostname}"
+    CORS_ORIGIN              = "https://${module.frontend.default_hostname}"
     AZURE_STORAGE_ACCOUNT    = azurerm_storage_account.main.name
     AZURE_STORAGE_ACCESS_KEY = azurerm_storage_account.main.primary_access_key
     AZURE_CONTAINER_NAME     = azurerm_storage_container.assets.name
   }
 }
 
-resource "azurerm_linux_web_app" "frontend" {
-  name                = "app-${local.name}-web-${random_string.suffix.result}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  service_plan_id     = azurerm_service_plan.main.id
-  https_only          = true
-  tags                = local.tags
+moved {
+  from = azurerm_linux_web_app.frontend
+  to   = module.frontend.azurerm_linux_web_app.this
+}
 
-  site_config {
-    always_on = true
-    application_stack {
-      node_version = "20-lts"
-    }
-  }
+moved {
+  from = azurerm_linux_web_app.backend
+  to   = module.backend.azurerm_linux_web_app.this
 }
 
 resource "random_password" "db" {
