@@ -13,3 +13,4 @@ deploy-zips/
 *.tfstate.*
 tfplan
 crash.log
+.DS_Store
