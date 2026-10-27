@@ -1,5 +1,7 @@
 # Cloud Student Event Management
 
+> **This fork adds Terraform infrastructure for Azure.** I rebuilt the app's hosting as code: App Service, PostgreSQL, Blob Storage, Key Vault with managed identity, a reusable module and remote state. See [infra/README.md](infra/README.md) for the architecture and how to run it.
+
 ## Description
 A full-stack web application for managing student events.
 
