@@ -1,0 +1,54 @@
+name: Terraform
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['infra/**']
+  push:
+    branches: [main]
+    paths: ['infra/**']
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: "true"
+
+defaults:
+  run:
+    working-directory: infra
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Format check
+        run: terraform fmt -check -recursive
+      - name: Init
+        run: terraform init
+      - name: Validate
+        run: terraform validate
+      - name: Plan
+        run: terraform plan -var-file=dev.tfvars -input=false
+
+  apply:
+    name: Apply
+    needs: plan
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Init
+        run: terraform init
+      - name: Apply
+        run: terraform apply -var-file=dev.tfvars -input=false -auto-approve
